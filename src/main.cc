@@ -1,14 +1,5 @@
 #include <iostream>  
 #include "Server.h"  
-
-class Exception {
-private :
-    int errno;
-public :
-    Exception(int code) { errno = code; }
-    int getErrno() { return errno; }
-};
-
   
 int main(int argc,char* argv[])  
 {  

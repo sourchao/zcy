@@ -3,14 +3,6 @@
 #include <vector>
 #include <sstream>
 
-class Exception {
-private :
-    int errno;
-public :
-    Exception(int code) { errno = code; }
-    int getErrno() { return errno; }
-};
-
 server::server(int listen_port) 
 {  
     if(( socket_fd = socket(PF_INET,SOCK_STREAM,IPPROTO_TCP)) < 0 )
