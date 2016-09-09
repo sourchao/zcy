@@ -13,7 +13,7 @@ using namespace std;
 #define MAXSIZE 2000  
 #define AUTHENSIZE 1024
   
-class server  
+class server
 {  
 private:
   

@@ -44,8 +44,8 @@ int server::start()
         { 
             //vector<char> buff;
             
-            char buffer[AUTHENSIZE];  
-            memset(buffer,0,AUTHENSIZE);  
+            char buffer[AUTHENSIZE];
+            memset(buffer,0,AUTHENSIZE);
             if( ( read(accept_fd,buffer,AUTHENSIZE)) < 0 ) 
             {  
                 throw string("Read authencation data error!");  
@@ -106,10 +106,11 @@ void authenInfo(char* temp)
     int i = 1;
     while(*temp != '\n')
     {
-	if(*temp == ' ')
-	    i++;
-	temp++;
+	    if(*temp == ' ')
+	        i++;
+	    temp++;
     }
+    
     if(i == 5)
         cout<<"Authentication is passed"<<endl;
     else
