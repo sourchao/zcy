@@ -3,10 +3,9 @@
   
 int main(int argc,char* argv[])  
 {  
-    server ts(atoi(argv[1]));  
-    
     try
     {
+        server ts(atoi(argv[1]));
         ts.start();
     }    
     catch(string ex)
