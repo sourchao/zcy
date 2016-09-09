@@ -24,7 +24,7 @@ OBJECTS := $(patsubst %.cc,%.o,$(wildcard *.cc))
 $(BIN_TARGET) : $(OBJECTS)
 	$(CROSS_COMPILE)$(CC) $(CFLAGS) $^ -o $@ $(LDFLAGS)
 
-%.o : %.c
+%.o : %.cc
 	$(CROSS_COMPILE)$(CC) -c $(CFLAGS) $< -o $@
 clean:
 	@rm -f *.o $(BIN_TARGET)
