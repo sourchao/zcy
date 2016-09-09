@@ -64,7 +64,7 @@ int server::start()
                 } 
 		        else
 		        {
-		            int lastIntValue = *(&buff + num -4);
+		            int lastIntValue = *(int*)(&buff + num -4);
 		        }
 		        int j = 0;
 		        while(buff[j] != '\n')

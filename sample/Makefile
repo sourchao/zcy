@@ -1,8 +1,8 @@
 #common makefile header
 
-DIR_INC = ../../include
-DIR_BIN = ../../bin
-DIR_LIB = ../../libs
+DIR_INC = ../include
+DIR_BIN = ../bin
+DIR_LIB = ../libs
 
 TARGET	= iat_sample
 BIN_TARGET = $(DIR_BIN)/$(TARGET)
