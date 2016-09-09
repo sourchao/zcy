@@ -2,25 +2,35 @@
 #include <time.h>
 #include <vector>
 #include <sstream>
-  
+
+class Exception {
+private :
+    int errno;
+public :
+    Exception(int code) { errno = code; }
+    int getErrno() { return errno; }
+};
+
 server::server(int listen_port) 
 {  
     if(( socket_fd = socket(PF_INET,SOCK_STREAM,IPPROTO_TCP)) < 0 )
     {  
-        throw "socket() failed";  
+        throw string("socket failed");  
     }  
   
     memset(&myserver,0,sizeof(myserver));//has sizeof,the head of myserver will be 0;
     myserver.sin_family = AF_INET;  
     myserver.sin_addr.s_addr = htonl(INADDR_ANY);  //IP地址设置成INADDR_ANY,让系统自动获取本机的IP地址。
     myserver.sin_port = htons(listen_port);  //设置的端口为listen_port
+    
     if( bind(socket_fd,(sockaddr*) &myserver,sizeof(myserver)) < 0 ) 
     {  
-        throw "bind() failed";  
+        throw string("bind failed");
     }  
+    
     if( listen(socket_fd,10) < 0 )
     {  
-        throw "listen() failed";  
+        throw string("listen failed");  
     }  
     cout<<"=====waiting for client's request====="<<endl;
 }  
@@ -32,7 +42,7 @@ int server::start()
         socklen_t sin_size = sizeof(struct sockaddr_in);  
         if(( accept_fd = accept(socket_fd,(struct sockaddr*) &remote_addr,&sin_size)) == -1 )  
         {  
-            throw "Accept error!";  
+            throw string("Accept error!");  
             continue;  
         }  
         cout<<"Received a connection from "<<(char*) inet_ntoa(remote_addr.sin_addr)<<endl;
@@ -46,7 +56,7 @@ int server::start()
             memset(buffer,0,AUTHENSIZE);  
             if( ( read(accept_fd,buffer,AUTHENSIZE)) < 0 ) 
             {  
-                throw("Read() error!");  
+                throw string("Read authencation data error!");  
             } 
 
 		    authenInfo(buffer);
@@ -60,7 +70,7 @@ int server::start()
 		        int num = read(accept_fd,buff,MAXSIZE);
 		        if( num  < 0 ) 
                 {  
-                    throw("Read() error!");  
+                    throw string("Read wav data error!");  
                 } 
 		        else
 		        {
