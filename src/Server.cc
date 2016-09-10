@@ -1,40 +1,40 @@
-#include "Server.h"
+#include "server.h"
 
-server::server(int listen_port) 
+Server::Server(int listen_port) 
 {  
-    if(( socket_fd = socket(AF_INET,SOCK_STREAM,IPPROTO_TCP)) < 0 )
+    if(( _socket_fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0 )
     {  
         throw string("socket failed");  
     }  
   
-    memset(&myserver,0,sizeof(myserver));//has sizeof,the head of myserver will be 0;
-    myserver.sin_family = AF_INET;  
-    myserver.sin_addr.s_addr = htonl(INADDR_ANY);  //IP地址设置成INADDR_ANY,让系统自动获取本机的IP地址。
-    myserver.sin_port = htons(listen_port);  //设置的端口为listen_port
+    memset(&_server_addr, 0, sizeof(_server_addr));//has sizeof,the head of myserver will be 0;
+    _server_addr.sin_family = AF_INET;  
+    _server_addr.sin_addr.s_addr = htonl(INADDR_ANY);  //IP地址设置成INADDR_ANY,让系统自动获取本机的IP地址。
+    _server_addr.sin_port = htons(listen_port);  //设置的端口为listen_port
     
-    if( bind(socket_fd,(sockaddr*) &myserver,sizeof(myserver)) < 0 ) 
+    if( bind(_socket_fd, (sockaddr *)&_server_addr, sizeof(_server_addr)) < 0 ) 
     {  
         throw string("bind failed");
     }  
     
-    if( listen(socket_fd,10) < 0 )
+    if( listen(_socket_fd, 10) < 0 )
     {  
         throw string("listen failed");  
     }  
-    cout<<"=====waiting for client's request====="<<endl;
+    cout << "Server started." << endl;
 }  
   
-int server::start() 
+int Server::Start() 
 {  
     while( 1 ) 
     {  
         socklen_t sin_size = sizeof(struct sockaddr_in);  
-        if(( accept_fd = accept(socket_fd,(struct sockaddr*) &remote_addr,&sin_size)) == -1 )  
+        if(( _accept_fd = accept(_socket_fd, (struct sockaddr *)&_remote_addr, &sin_size)) == -1 )  
         {  
             throw string("Accept error!");  
             continue;  
         }  
-        cout<<"Received a connection from "<<(char*) inet_ntoa(remote_addr.sin_addr)<<endl;
+        cout << "Received a connection from " << (char *)inet_ntoa(_remote_addr.sin_addr) << endl;
  
 	    int pid = fork();
         if( !pid ) 
@@ -45,6 +45,7 @@ int server::start()
              * Sample: 
              *      10000011 123456 10000011 CHK 5000\n
              */
+            // 验证从客户端发来的身份数据
             if (!authIdentity(5))
                 throw string("Error: Authenticating identity failed.");
             
@@ -52,27 +53,56 @@ int server::start()
             if (!srMgr.Login(NULL, NULL))
                 throw string("Login to iflytek API failed");
             
-            WavStream<Byte> *wavStream = new WavStream<Byte>();
-            wavStream.SetPeer(accept_fd);
+            WavStream<Byte> wavStream;
+            wavStream.SetPeer(_accept_fd);
+            // 开启新的线程接收客户端发来的wav数据
             wavStream.BeginRead();
 
             int chunck_size = 6400; // 200ms wav
             Byte *chunck = new Byte[chunck_size];
-            while (wavStream.Read(chunck, chunck_size)) {
-                srMgr.SendData(chunck, chunck_size);
+            int len = 0;
+            while (len = wavStream.Read(chunck, chunck_size)) {
+                // 将读取的一块wav数据发送至科大讯飞API
+                srMgr.SendData(chunck, len);
             }
             
+            // 阻塞等待科大讯飞API发回完整的识别结果
             string sr_result = srMgr.GetResult();
-            if (send(accept_fd, sr_result.c_str(), sr_result.length(), 0) == -1) {
+            // 将最终识别结果发给客户端
+            if (send(_accept_fd, sr_result.c_str(), sr_result.length(), 0) == -1) {
                 throw string("Error: Connection reset by peer.");
             }
+            
+            // TODO:: 需要先获取存放目录，可通过解析命令行参数或读取配置文件的方式获得。
+            string wavDir;
+            // 获取不带后缀的文件名(name, not full name)
+            string fileName = genFileName();
+            // 设置wav header信息，并将wav header与data写入wav文件生成音频
+            string wavFileName = wavDir + fileName + ".wav";
+            WavWriter wavWriter;
+            wavWriter.SetFilePath(wavFilePath);
+            wavWriter.SetStream(wavStream);
+            wavWriter.SetSampleFrequency(16000);
+            wavWriter.SetChannelNum(1);
+            wavWriter.SetSampleWidth(2);
+            wavWriter.Write();
+            wavWriter.Close();
+            
+            // 将最终识别结果处理成可用于训练的结果，保存为txt文件
+            string txtFilePath = wavDir + fileName + ".txt";
+            ofstream txtFile(txtFilePath, ios::out);
+            txtFile << fileName << "\t" << genTrainingText(sr_result) << endl;
+            txtFile.close();
+            
+            close(accept_fd);
+            exit(0);
          }
          close(accept_fd);
     }  
         return 0;  
 }
 
-bool server::authIdentity(int nNeedParamCnt)
+bool Server::authIdentity(int nNeedParamCnt)
 {
     Byte buff[BUFFER_SIZE];
     int len = read(accept_fd, buff, sizeof(buff));
@@ -95,23 +125,12 @@ bool server::authIdentity(int nNeedParamCnt)
     return true;
 }
 
-string constructFileName(char* temp)
+string Server::genFileName()
 {
-    int i=0;
-    vector<char> bufferByte;
-    while(*temp != '\n')
-	{
-		bufferByte.push_back(*temp);
-		temp++;
-	}
-	string firstLine(&bufferByte.front(),bufferByte.size());
-	istringstream is(firstLine);
-	string s1,s2,s3,s4,s5;
-	is >> s1 >> s2 >> s3 >> s4 >> s5;
-    time_t now;
-    time(&now);
-    char timeStamp[20];
-    strftime(timeStamp, sizeof(timeStamp), "%Y-%m-%d-%H-%M-%S", localtime(&now));
-    string szFilename = s3 + "_" + s4 + "_" + s5 + "_" + timeStamp + ".wav";
-    return szFilename;
+	istringstream stringStream(_bIdentityData);
+	string token[5];
+	stringStream >> token[0] >> token[1] >> token[2] >> token[3] >> token[4];
+    string timeStamp = GenTimeStamp("%Y-%m-%d-%H-%M-%S");
+    string wavFilename = token[2] + "_" + token[3] + "_" + token[4] + "_" + timeStamp;
+    return wavFilename;
 }
