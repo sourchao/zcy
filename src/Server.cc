@@ -1,11 +1,8 @@
 #include "Server.h"
-#include <time.h>
-#include <vector>
-#include <sstream>
 
 server::server(int listen_port) 
 {  
-    if(( socket_fd = socket(PF_INET,SOCK_STREAM,IPPROTO_TCP)) < 0 )
+    if(( socket_fd = socket(AF_INET,SOCK_STREAM,IPPROTO_TCP)) < 0 )
     {  
         throw string("socket failed");  
     }  
@@ -41,84 +38,63 @@ int server::start()
  
 	    int pid = fork();
         if( !pid ) 
-        { 
-            //vector<char> buff;
+        {
+            /*
+             * Authentication data format: 
+             *      username password docid depid port\n
+             * Sample: 
+             *      10000011 123456 10000011 CHK 5000\n
+             */
+            if (!authIdentity(5))
+                throw string("Error: Authenticating identity failed.");
             
-            char buffer[AUTHENSIZE];
-            memset(buffer,0,AUTHENSIZE);
-            if( ( read(accept_fd,buffer,AUTHENSIZE)) < 0 ) 
-            {  
-                throw string("Read authencation data error!");  
-            } 
+            SRManager srMgr;
+            if (!srMgr.Login(NULL, NULL))
+                throw string("Login to iflytek API failed");
+            
+            WavStream<Byte> *wavStream = new WavStream<Byte>();
+            wavStream.SetPeer(accept_fd);
+            wavStream.BeginRead();
 
-		    authenInfo(buffer);
-		    string szFileName = constructFileName(buffer);
-            bool flag = true;
-            char buff[MAXSIZE];
-            vector<char> buffVector;
-            while(flag)
-            {
-	            memset(buff,0,MAXSIZE);
-		        int num = read(accept_fd,buff,MAXSIZE);
-		        if( num  < 0 ) 
-                {  
-                    throw string("Read wav data error!");  
-                } 
-		        else
-		        {
-		            int lastIntValue = *(int*)(&buff + num -4);
-		        }
-		        int j = 0;
-		        while(buff[j] != '\n')
-		        {
-		            buffVector.push_back(buff[j]);
-		            j++;
-		        }
-		      
-	        }
-	        exit(0);
-            /*else 
-            {  
-                cout<<"Received message: "<<buffer<<endl;  
-                break;  
-            }  
-            exit(0);  
-            */
-	        /*
-            getAuthenticationData()  // blocking
-            while (true) {
-                if (finished())
-                    break;
-                getWavData()  // blocking
-                //if (hasEnouthData())
-                //    callIflytekAPI();
+            int chunck_size = 6400; // 200ms wav
+            Byte *chunck = new Byte[chunck_size];
+            while (wavStream.Read(chunck, chunck_size)) {
+                srMgr.SendData(chunck, chunck_size);
             }
-            //if (hasRemainData())
-            //    callIflytekAPI();
-            */
+            
+            string sr_result = srMgr.GetResult();
+            if (send(accept_fd, sr_result.c_str(), sr_result.length(), 0) == -1) {
+                throw string("Error: Connection reset by peer.");
+            }
          }
          close(accept_fd);
     }  
         return 0;  
 }
-void authenInfo(char* temp)
+
+bool server::authIdentity(int nNeedParamCnt)
 {
-    int i = 1;
-    while(*temp != '\n')
-    {
-	    if(*temp == ' ')
-	        i++;
-	    temp++;
+    Byte buff[BUFFER_SIZE];
+    int len = read(accept_fd, buff, sizeof(buff));
+    if (len == -1 || buff[len - 1] != '\n')
+        return false;
+    
+    buff[len - 1] = '\0';   // replace '\n' to '\0'
+    _bIdentityData = (char *)buff;
+#ifdef DEBUG    
+    cout << "Receiving authentication data: " << _bIdentityData << endl;
+#endif
+    int nRecvParamCnt = 1;
+    for (int i = 0; i < len; i++) {
+        if (_bIdentityData[i] == ' ')
+            nRecvParamCnt++;
     }
     
-    if(i == 5)
-        cout<<"Authentication is passed"<<endl;
-    else
-    {
-        cout<<"Authentication is not passed"<<endl;
-        exit(-1);
-    }
+    if (nRecvParamCnt != nNeedParamCnt)
+        return false;
+    return true;
 }
+
 string constructFileName(char* temp)
 {
     int i=0;

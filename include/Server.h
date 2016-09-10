@@ -1,3 +1,6 @@
+#ifndef _SERVER_H_
+#define _SERVER_H_
+
 #include <unistd.h>  
 #include <iostream>  
 #include <sys/socket.h>  
@@ -7,24 +10,29 @@
 #include <string>
 #include <cstring>
 #include <sstream>
+#include <time.h>
+#include <vector>
+#include "sr_mgr.h"
+#include "types.h"
 
 using namespace std;
   
-#define MAXSIZE 2000  
-#define AUTHENSIZE 1024
+#define BUFFER_SIZE 1024
   
 class server
 {  
-private:
-  
-    int socket_fd,accept_fd;  
-    sockaddr_in myserver;  
-    sockaddr_in remote_addr;  
-  
 public:  
     server(int listen_port);  
-    int start();  
+    int start(); 
+    
+private:
+    bool authIdentity(int nNeedParamCnt);
+
+    int socket_fd,accept_fd;  
+    sockaddr_in myserver;  
+    sockaddr_in remote_addr;
+    string _bIdentityData; 
 }; 
 string constructFileName(char* temp);
-void authenInfo(char* temp);
 //string readLine(int socket_fd,char* buffer,int MAXSIZE){}
+#endif
