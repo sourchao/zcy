@@ -63,7 +63,7 @@ int Server::Start()
             int chunck_size = 6400; // 200ms wav
             Byte *chunck = new Byte[chunck_size];
             int len = 0;
-            while (len = wavStream.Read(chunck, chunck_size)) {
+            while (len = wavReader.Read(chunck, chunck_size)) {
                 // 将读取的一块wav数据发送至科大讯飞API
                 srMgr.SendData(chunck, len);
             }
