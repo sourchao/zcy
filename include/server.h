@@ -37,6 +37,4 @@ private:
     sockaddr_in _remote_addr;
     string _bIdentityData; 
 }; 
-string constructFileName(char* temp);
-//string readLine(int socket_fd,char* buffer,int MAXSIZE){}
 #endif

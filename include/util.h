@@ -3,4 +3,6 @@
 
 #include <time.h>
 
+char * GenTimeStamp(const char * format);
+
 #endif

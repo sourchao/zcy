@@ -34,7 +34,7 @@ int Server::Start()
             throw string("Accept error!");  
             continue;  
         }  
-        cout << "Received a connection from " << (char *)inet_ntoa(_remote_addr.sin_addr) << endl;
+        cout << "Received a connection from " << inet_ntoa(_remote_addr.sin_addr) << endl;
  
 	    int pid = fork();
         if( !pid ) 
@@ -54,9 +54,11 @@ int Server::Start()
                 throw string("Login to iflytek API failed");
             
             WavStream<Byte> wavStream;
-            wavStream.SetPeer(_accept_fd);
+            WavReader<Byte> wavReader;
+            wavReader.SetStream(&wavStream);
+            wavReader.SetSource(_accept_fd);
             // 开启新的线程接收客户端发来的wav数据
-            wavStream.BeginRead();
+            wavReader.BeginRead();  // pthread
 
             int chunck_size = 6400; // 200ms wav
             Byte *chunck = new Byte[chunck_size];
@@ -79,9 +81,9 @@ int Server::Start()
             string fileName = genFileName();
             // 设置wav header信息，并将wav header与data写入wav文件生成音频
             string wavFileName = wavDir + fileName + ".wav";
-            WavWriter wavWriter;
+            WavWriter<Byte> wavWriter;
             wavWriter.SetFilePath(wavFilePath);
-            wavWriter.SetStream(wavStream);
+            wavWriter.SetStream(&wavStream);
             wavWriter.SetSampleFrequency(16000);
             wavWriter.SetChannelNum(1);
             wavWriter.SetSampleWidth(2);
@@ -105,13 +107,13 @@ int Server::Start()
 bool Server::authIdentity(int nNeedParamCnt)
 {
     Byte buff[BUFFER_SIZE];
-    int len = read(accept_fd, buff, sizeof(buff));
+    int len = read(_accept_fd, buff, sizeof(buff));
     if (len == -1 || buff[len - 1] != '\n')
         return false;
     
     buff[len - 1] = '\0';   // replace '\n' to '\0'
     _bIdentityData = (char *)buff;
-#ifdef DEBUG    
+#ifdef DEBUG
     cout << "Receiving authentication data: " << _bIdentityData << endl;
 #endif
     int nRecvParamCnt = 1;
