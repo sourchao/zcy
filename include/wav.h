@@ -7,7 +7,6 @@
 
 template <class DataType>
 class WavStream {
-public:
     int Read(DataType * chunk, int chunk_size, int index, int len);
     int Size() { return _wavData.size(); }
     
