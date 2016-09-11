@@ -52,6 +52,9 @@ int Server::Start()
             SRManager srMgr;
             if (!srMgr.Login(NULL, NULL))
                 throw string("Login to iflytek API failed");
+                
+            if (!srMgr.BeginSession(NULL))
+                throw string("Create iflytek sr session failed");
             
             WavStream<Byte> wavStream;
             WavReader<Byte> wavReader;
@@ -60,21 +63,26 @@ int Server::Start()
             // 开启新的线程接收客户端发来的wav数据
             wavReader.BeginRead();  // pthread
 
-            int chunck_size = 6400; // 200ms wav
-            Byte *chunck = new Byte[chunck_size];
+            int chunk_size = 6400; // 200ms wav
+            Byte *chunk = new Byte[chunk_size];
             int len = 0;
-            while (len = wavStream.Read(chunck, chunck_size)) {
+            while (len = wavReader.Read(chunk, chunk_size)) {          
                 // 将读取的一块wav数据发送至科大讯飞API
-                srMgr.SendData(chunck, len);
+                if (!srMgr.SendData(chunk, len))
+                    throw string("  ERROR: Send wav data failed");
             }
+            if (!srMgr.SendFinish())
+                    throw string("  ERROR: Send finish request failed"); 
             
             // 阻塞等待科大讯飞API发回完整的识别结果
             string sr_result = srMgr.GetResult();
+            if (sr_result == NULL)
+                throw string("    ERROR: Get sr result failed");
             // 将最终识别结果发给客户端
             if (send(_accept_fd, sr_result.c_str(), sr_result.length(), 0) == -1) {
                 throw string("Error: Connection reset by peer.");
             }
-            
+            /*
             // TODO:: 需要先获取存放目录，可通过解析命令行参数或读取配置文件的方式获得。
             string wavDir;
             // 获取不带后缀的文件名(name, not full name)
@@ -95,8 +103,9 @@ int Server::Start()
             ofstream txtFile(txtFilePath, ios::out);
             txtFile << fileName << "\t" << genTrainingText(sr_result) << endl;
             txtFile.close();
-            
+            */
             close(accept_fd);
+            cout << _summary << endl;
             exit(0);
          }
          close(accept_fd);
@@ -114,7 +123,7 @@ bool Server::authIdentity(int nNeedParamCnt)
     buff[len - 1] = '\0';   // replace '\n' to '\0'
     _bIdentityData = (char *)buff;
 #ifdef DEBUG
-    cout << "Receiving authentication data: " << _bIdentityData << endl;
+    cout << "    DEBUG: Receiving authentication data: " << _bIdentityData << endl;
 #endif
     int nRecvParamCnt = 1;
     for (int i = 0; i < len; i++) {

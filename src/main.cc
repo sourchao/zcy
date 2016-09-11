@@ -1,7 +1,6 @@
-#include <iostream>  
-#include "Server.h"  
+#include "server.h"  
   
-int main(int argc,char* argv[])  
+int main(int argc, char* argv[])  
 {  
     try
     {
@@ -10,7 +9,8 @@ int main(int argc,char* argv[])
     }    
     catch(string ex)
     {
-        cout<<ex<<endl;
+        cout << ex << endl;
     } 
+    
     return 0;  
 }   

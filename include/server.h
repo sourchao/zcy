@@ -25,7 +25,7 @@ class Server
 {  
 public:  
     Server(int listen_port);  
-    int Start(); 
+    int Start();
     
 private:
     bool authIdentity(int nNeedParamCnt);
@@ -35,6 +35,7 @@ private:
     int _socket_fd, _accept_fd;  
     sockaddr_in _server_addr;  
     sockaddr_in _remote_addr;
-    string _bIdentityData; 
+    string _bIdentityData;
+    string _summary;
 }; 
 #endif
