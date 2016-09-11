@@ -10,10 +10,19 @@ private:
     vector<DataType> _wavData;
 };
 
+template <class DataType>
+class WavReader {
+public:
+    void SetStream(WavStream<DataType> *wavStream);
+private:
+    WavStream<DataType> * _pWavStream;
+};
+
+template <class DataType>
 class WavWriter {
 public:
 
 private:
-    WavStream * _pWavStream;
+    WavStream<DataType> * _pWavStream;
 };
 #endif
