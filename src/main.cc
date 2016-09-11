@@ -4,8 +4,8 @@ int main(int argc, char* argv[])
 {  
     try
     {
-        server ts(atoi(argv[1]));
-        ts.start();
+        Server ts(atoi(argv[1]));
+        ts.Start();
     }    
     catch(string ex)
     {

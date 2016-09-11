@@ -5,11 +5,15 @@
 #include "msp_cmn.h"
 #include "msp_errors.h"
 #include "types.h"
+#include <string>
+#include <unistd.h>
+
+using std::string;
 
 class SRManager {
 public:
     SRManager();
-    bool Login(string username, string password);
+    bool Login(const char * username, const char * password);
     bool BeginSession(string gramma);
     int GetLastErrcode() { return _errcode; }
     bool SendData(Byte * buff, int len);

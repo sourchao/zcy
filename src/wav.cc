@@ -37,7 +37,7 @@ void * WavReader<DataType>::readingThread(void * param)
     _isReading = true;
     
     int len, type_size = sizeof(DataType);
-    Byte buff[BUFFER_SIZE];
+    Byte buff[WAV_BUFFER_SIZE];
     while (true) {
         len = read(_fileno, buff, sizeof(buff));
         if (len == -1)
@@ -57,6 +57,7 @@ void * WavReader<DataType>::readingThread(void * param)
     }
     return true;
 }
+
 template <class DataType>
 WavReader<DataType>::WavReader()
 : _pWavStream(NULL), _fileno(-1), _cur_pos(0), _isReading(false)
@@ -104,7 +105,7 @@ int  WavReader<DataType>::Read(DataType * chunk, int chunk_size)
 template <class DataType>
 int  WavReader<DataType>::checkUnreadData()
 {
-    return (
+    return (_pWavStream->size() - _cur_pos);
 }
 
 /* WavWriter Implement */

@@ -68,7 +68,7 @@ int Server::Start()
                 if (!srMgr.SendData(chunk, len))
                     throw string("  ERROR: Send wav data failed");
             }
-            
+           
             // 阻塞等待科大讯飞API发回完整的识别结果
             string sr_result = srMgr.GetResult();
             // 将最终识别结果发给客户端
@@ -97,10 +97,10 @@ int Server::Start()
             txtFile << fileName << "\t" << genTrainingText(sr_result) << endl;
             txtFile.close();
             */
-            close(accept_fd);
+            close(_accept_fd);
             exit(0);
          }
-         close(accept_fd);
+         close(_accept_fd);
     }  
         return 0;  
 }
@@ -134,6 +134,6 @@ string Server::genFileName()
 	string token[5];
 	stringStream >> token[0] >> token[1] >> token[2] >> token[3] >> token[4];
     string timeStamp = GenTimeStamp("%Y-%m-%d-%H-%M-%S");
-    string wavFilename = token[2] + "_" + token[3] + "_" + token[4] + "_" + timeStamp;
-    return wavFilename;
+    string filename = token[2] + "_" + token[3] + "_" + token[4] + "_" + timeStamp;
+    return filename;
 }

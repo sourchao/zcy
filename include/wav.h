@@ -4,13 +4,18 @@
 #include <vector>
 #include <pthread.h>
 #include <types.h>
+#include <stdio.h>
+#include <unistd.h>
 
-#define BUFFER_SIZE 2048
+using namespace std;
+
+#define WAV_BUFFER_SIZE 2048
 
 template <class DataType>
 class WavStream {
 public:
-    r Write();
+    int Write();
+    int Read(DataType * chunk, int chunk_size, int index, int len);
 private:
     vector<DataType> _wavData;
 };
@@ -18,13 +23,19 @@ private:
 template <class DataType>
 class WavReader {
 public:
+    WavReader();
     void SetStream(WavStream<DataType> *wavStream);
+    void SetSource(int fileno);
+    int  Read(DataType * chunk, int chunk_size);
     bool BeginRead();
+    
 private:
+    int checkUnreadData();
     void * readingThread(void * param);
     WavStream<DataType> * _pWavStream;
     int _fileno;
     bool _isReading;
+    int _cur_pos;
 };
 
 template <class DataType>

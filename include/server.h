@@ -10,8 +10,8 @@
 #include <string>
 #include <cstring>
 #include <sstream>
-#include <iomanip.h>
-#include <fstream.h>
+#include <iomanip>
+#include <fstream>
 #include "sr_mgr.h"
 #include "types.h"
 #include "wav.h"
@@ -29,7 +29,7 @@ public:
     
 private:
     bool authIdentity(int nNeedParamCnt);
-    string genWavFileName();
+    string genFileName();
     string genTrainingText(string result);
 
     int _socket_fd, _accept_fd;  
