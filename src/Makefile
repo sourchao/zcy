@@ -11,9 +11,9 @@ BIN_TARGET = $(DIR_BIN)/$(TARGET)
 
 CROSS_COMPILE = 
 ifdef DEBUG
-CFLAGS = -g -Wall -I$(DIR_INC) -DDEBUG
+CFLAGS = -g -Wl,--no-as-needed -std=c++11 -Wall -I$(DIR_INC) -DDEBUG
 else
-CFLAGS = -g -Wall -I$(DIR_INC)
+CFLAGS = -g -Wl,--no-as-needed -std=c++11 -Wall -I$(DIR_INC)
 endif
 
 ifdef LINUX64
@@ -30,6 +30,7 @@ $(BIN_TARGET) : $(OBJECTS)
 
 %.o : %.cc
 	$(CROSS_COMPILE)$(CC) -c $(CFLAGS) $< -o $@
+
 clean:
 	@rm -f *.o $(BIN_TARGET)
 

@@ -1,4 +1,5 @@
 #include "server.h"
+#include <fstream>
 
 Server::Server(int listen_port) 
 {  
@@ -34,7 +35,8 @@ int Server::Start()
             throw string("Accept error!");  
             continue;  
         }  
-        cout << "Received a connection from " << inet_ntoa(_remote_addr.sin_addr) << endl;
+        cout << "Received a connection from " << inet_ntoa(_remote_addr.sin_addr) << ":" \
+                                              << ntohs(_remote_addr.sin_port) << endl;
  
 	    int pid = fork();
         if( !pid ) 
@@ -47,18 +49,22 @@ int Server::Start()
              */
             // 验证从客户端发来的身份数据
             if (!authIdentity(5))
-                throw string("Error: Authenticating identity failed.");
+                throw string("    ERROR: Authenticating identity failed.");
             
             SRManager srMgr;
             if (!srMgr.Login(NULL, NULL))
-                throw string("Login to iflytek API failed");
+                throw string("    ERROR: Login to iflytek API failed");
             
+            if (!srMgr.BeginSession())
+                throw string("    ERROR: Create session failed");
+
             WavStream<Byte> wavStream;
             WavReader<Byte> wavReader;
             wavReader.SetStream(&wavStream);
             wavReader.SetSource(_accept_fd);
             // 开启新的线程接收客户端发来的wav数据
-            wavReader.BeginRead();  // pthread
+            if (!wavReader.BeginRead())
+                throw string("    ERROR: Invalid stream or source");
 
             int chunk_size = 6400; // 200ms wav
             Byte *chunk = new Byte[chunk_size];
@@ -67,15 +73,25 @@ int Server::Start()
                 // 将读取的一块wav数据发送至科大讯飞API
                 if (!srMgr.SendData(chunk, len))
                     throw string("  ERROR: Send wav data failed");
+                srMgr.AskResult();
             }
-           
+            srMgr.SendFinish();
             // 阻塞等待科大讯飞API发回完整的识别结果
-            string sr_result = srMgr.GetResult();
+            srMgr.WaitAllResults();
+            srMgr.EndSession();
+            srMgr.Logout();
+           
             // 将最终识别结果发给客户端
+            string sr_result = srMgr.GetResult();
             if (send(_accept_fd, sr_result.c_str(), sr_result.length(), 0) == -1) {
-                throw string("Error: Connection reset by peer.");
+                throw string("    Error: Connection reset by peer.");
             }
-            /*
+
+            // 音频数据写文件样例
+            ofstream fs("temp.wav", ios::out | ios::binary);
+            fs.write((const char *)wavStream.ReadAll(), wavStream.Size());
+            fs.close();
+            /* 剩下需要完成生成音频文件和保存识别结果的TXT文件
             // TODO:: 需要先获取存放目录，可通过解析命令行参数或读取配置文件的方式获得。
             string wavDir;
             // 获取不带后缀的文件名(name, not full name)
@@ -90,7 +106,8 @@ int Server::Start()
             wavWriter.SetSampleWidth(2);
             wavWriter.Write();
             wavWriter.Close();
-            
+           
+             
             // 将最终识别结果处理成可用于训练的结果，保存为txt文件
             string txtFilePath = wavDir + fileName + ".txt";
             ofstream txtFile(txtFilePath, ios::out);
@@ -115,7 +132,7 @@ bool Server::authIdentity(int nNeedParamCnt)
     buff[len - 1] = '\0';   // replace '\n' to '\0'
     _bIdentityData = (char *)buff;
 #ifdef DEBUG
-    cout << "Receiving authentication data: " << _bIdentityData << endl;
+    cout << "    DEBUG: Authentication data: " << _bIdentityData << endl;
 #endif
     int nRecvParamCnt = 1;
     for (int i = 0; i < len; i++) {

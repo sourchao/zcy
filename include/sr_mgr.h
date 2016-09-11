@@ -7,22 +7,27 @@
 #include "types.h"
 #include <string>
 #include <unistd.h>
+#include <iostream>
 
-using std::string;
+using namespace std;
 
 class SRManager {
 public:
     SRManager();
     bool Login(const char * username, const char * password);
-    bool BeginSession(string gramma);
+    void Logout();
+    bool BeginSession();
+    void EndSession();
     int GetLastErrcode() { return _errcode; }
     bool SendData(Byte * buff, int len);
     bool SendFinish();
+    string AskResult();
+    string WaitAllResults();
     string GetResult();
 private:
-    string _szLoginParams;
-    string _szSessionParams;
-    string _session_id;
+    const char *  _szLoginParams;
+    const char *  _szSessionParams;
+    const char *  _session_id;
     string _sr_result;
     int _errcode;
     int _aud_stat;

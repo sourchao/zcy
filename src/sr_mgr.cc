@@ -4,7 +4,7 @@ SRManager::SRManager()
 {
     _szLoginParams   = "appid = 57c3f80f, work_dir = .";
     _szSessionParams = "sub = iat, domain = iat, language = zh_ch, accent = mandarin, sample_rate = 16000, result_type = plain, result_encoding = utf8";
-    _session_id = "";
+    _session_id = NULL;
     _sr_result = "";
     _errcode = MSP_SUCCESS;
     _aud_stat = MSP_AUDIO_SAMPLE_CONTINUE;
@@ -16,19 +16,30 @@ SRManager::SRManager()
 bool SRManager::Login(const char * username, const char * password)
 {
     int ret = MSP_SUCCESS;
-    ret = MSPLogin(username, password, _szLoginParams.c_str());
+    ret = MSPLogin(username, password, _szLoginParams);
     if (ret != MSP_SUCCESS)
         return false;
     return true;
 }
 
-bool SRManager::BeginSession(string gramma)
+void SRManager::Logout()
 {
-    _session_id = QISRSessionBegin(gramma.c_str(), _szSessionParams.c_str(), &_errcode);
+    MSPLogout();
+}
+
+bool SRManager::BeginSession()
+{
+    _session_id = QISRSessionBegin(NULL, _szSessionParams, &_errcode);
     
 	if (MSP_SUCCESS != _errcode)
 	    return false;
 	return true;
+}
+
+void SRManager::EndSession()
+{
+    char hints[100] = {NULL};
+    QISRSessionEnd(_session_id, hints);
 }
 
 bool SRManager::SendData(Byte * buff, int len)
@@ -38,7 +49,7 @@ bool SRManager::SendData(Byte * buff, int len)
     else
         _aud_stat = MSP_AUDIO_SAMPLE_CONTINUE;
         
-    _errcode = QISRAudioWrite(_session_id.c_str(), (const void *)buff, len, _aud_stat, &_ep_stat, &_rec_stat);
+    _errcode = QISRAudioWrite(_session_id, (const void *)buff, len, _aud_stat, &_ep_stat, &_rec_stat);
     
     if (MSP_SUCCESS != _errcode)
         return false;
@@ -49,24 +60,54 @@ bool SRManager::SendData(Byte * buff, int len)
 
 bool SRManager::SendFinish()
 {
-    _errcode = QISRAudioWrite(_session_id.c_str(), NULL, 0, MSP_AUDIO_SAMPLE_LAST, &_ep_stat, &_rec_stat);
+    _errcode = QISRAudioWrite(_session_id, NULL, 0, MSP_AUDIO_SAMPLE_LAST, &_ep_stat, &_rec_stat);
     if (MSP_SUCCESS != _errcode)
         return false;
     return true;
 }
 
-string SRManager::GetResult()
+string SRManager::AskResult()
 {
+    string cur_result = "";
+    if (MSP_REC_STATUS_SUCCESS == _rec_stat) 
+    {
+        const char *result = QISRGetResult(_session_id, &_rec_stat, 0, &_errcode);
+        if (MSP_SUCCESS != _errcode)
+            return "err";
+
+        if (NULL != result) {
+            cur_result += result;
+#ifdef DEBUG
+        cout << "    DEBUG: SR Result [ " << result << " ]" << endl;
+#endif		    
+        }
+    }
+    _sr_result += cur_result;
+    return cur_result;
+}
+
+string SRManager::WaitAllResults()
+{
+    string cur_result = "";
     while (MSP_REC_STATUS_COMPLETE != _rec_stat) 
 	{
-		const char * result = QISRGetResult(_session_id.c_str(), &_rec_stat, 0, &_errcode);
+		const char * result = QISRGetResult(_session_id, &_rec_stat, 0, &_errcode);
 		if (MSP_SUCCESS != _errcode)
-		    return NULL;
+		    return "err";
 		    
-		if (NULL != result)
-		    _sr_result += result;
-		    
+		if (NULL != result) {
+		    cur_result += result;
+#ifdef DEBUG
+        cout << "    DEBUG: SR Result [ " << result << " ]" << endl;
+#endif		    
+        }
 		usleep(100 * 1000);
     }
+    _sr_result += cur_result;
+    return cur_result;
+}
+
+string SRManager::GetResult()
+{
     return _sr_result;
 }
