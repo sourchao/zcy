@@ -10,7 +10,11 @@ TARGET	= sr_baseIflytek
 BIN_TARGET = $(DIR_BIN)/$(TARGET)
 
 CROSS_COMPILE = 
+ifdef DEBUG
+CFLAGS = -g -Wall -I$(DIR_INC) -DDEBUG
+else
 CFLAGS = -g -Wall -I$(DIR_INC)
+endif
 
 ifdef LINUX64
 LDFLAGS := -L$(DIR_LIB)/x64
