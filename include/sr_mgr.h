@@ -24,6 +24,7 @@ public:
     string AskResult();
     string WaitAllResults();
     string GetResult();
+    bool IsSessionValid();
 private:
     const char *  _szLoginParams;
     const char *  _szSessionParams;
@@ -34,6 +35,7 @@ private:
     int _ep_stat;
     int _rec_stat;
     int _send_cnt;
+    bool _is_session_valid;
 };
 
 #endif

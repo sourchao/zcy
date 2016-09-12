@@ -71,7 +71,7 @@ int Server::Start()
             int len = 0;
             while (srMgr.IsSessionValid()) {
                 len = wavReader.Read(chunk, chunk_size);
-                if (len == -1)
+                if (len == 0)
                     break;
                 // 将读取的一块wav数据发送至科大讯飞API
                 if (!srMgr.SendData(chunk, len))
