@@ -11,6 +11,7 @@ SRManager::SRManager()
     _ep_stat = MSP_EP_LOOKING_FOR_SPEECH;
     _rec_stat = MSP_REC_STATUS_SUCCESS;
     _send_cnt = 0;
+    _is_session_valid = false;
 }
 
 bool SRManager::Login(const char * username, const char * password)
@@ -33,13 +34,16 @@ bool SRManager::BeginSession()
     
 	if (MSP_SUCCESS != _errcode)
 	    return false;
+
+    _is_session_valid = true;
 	return true;
 }
 
 void SRManager::EndSession()
 {
-    char hints[100] = {NULL};
+    char hints[100] = { 0 };
     QISRSessionEnd(_session_id, hints);
+    _is_session_valid = false;
 }
 
 bool SRManager::SendData(Byte * buff, int len)
@@ -55,6 +59,14 @@ bool SRManager::SendData(Byte * buff, int len)
         return false;
         
     _send_cnt++;
+
+    if (MSP_EP_AFTER_SPEECH == _ep_stat) {
+#ifdef DEBUG
+        cout << "    DEBUG: Current speech is ended by Iflytek server." << endl;
+#endif
+        _is_session_valid = false;
+    }
+
     return true;
 }
 
@@ -78,7 +90,7 @@ string SRManager::AskResult()
         if (NULL != result) {
             cur_result += result;
 #ifdef DEBUG
-        cout << "    DEBUG: SR Result [ " << result << " ]" << endl;
+            cout << "    DEBUG: SR Result [ " << result << " ]" << endl;
 #endif		    
         }
     }
@@ -98,11 +110,14 @@ string SRManager::WaitAllResults()
 		if (NULL != result) {
 		    cur_result += result;
 #ifdef DEBUG
-        cout << "    DEBUG: SR Result [ " << result << " ]" << endl;
+            cout << "    DEBUG: SR Result [ " << result << " ]" << endl;
 #endif		    
         }
 		usleep(100 * 1000);
     }
+#ifdef DEBUG
+    cout << "    DEBUG: All SR result has been received." << endl;
+#endif
     _sr_result += cur_result;
     return cur_result;
 }
@@ -110,4 +125,9 @@ string SRManager::WaitAllResults()
 string SRManager::GetResult()
 {
     return _sr_result;
+}
+
+bool SRManager::IsSessionValid()
+{
+    return _is_session_valid;
 }

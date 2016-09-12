@@ -69,12 +69,16 @@ int Server::Start()
             int chunk_size = 6400; // 200ms wav
             Byte *chunk = new Byte[chunk_size];
             int len = 0;
-            while (len = wavReader.Read(chunk, chunk_size)) {
+            while (srMgr.IsSessionValid()) {
+                len = wavReader.Read(chunk, chunk_size);
+                if (len == -1)
+                    break;
                 // 将读取的一块wav数据发送至科大讯飞API
                 if (!srMgr.SendData(chunk, len))
-                    throw string("  ERROR: Send wav data failed");
+                    throw string("    ERROR: Send wav data failed");
                 srMgr.AskResult();
             }
+            wavReader.EndRead();
             srMgr.SendFinish();
             // 阻塞等待科大讯飞API发回完整的识别结果
             srMgr.WaitAllResults();
@@ -84,7 +88,7 @@ int Server::Start()
             // 将最终识别结果发给客户端
             string sr_result = srMgr.GetResult();
             if (send(_accept_fd, sr_result.c_str(), sr_result.length(), 0) == -1) {
-                throw string("    Error: Connection reset by peer.");
+                throw string("    ERROR: Connection reset by peer.");
             }
 
             // 音频数据写文件样例
@@ -115,6 +119,7 @@ int Server::Start()
             txtFile.close();
             */
             close(_accept_fd);
+            cout << "    DONE!" << endl;
             exit(0);
          }
          close(_accept_fd);
