@@ -48,6 +48,9 @@ void SRManager::EndSession()
 
 bool SRManager::SendData(Byte * buff, int len)
 {
+    if (len <= 0)
+        return true;
+
     if (_send_cnt == 0)
         _aud_stat = MSP_AUDIO_SAMPLE_FIRST;
     else

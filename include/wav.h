@@ -32,7 +32,7 @@ public:
     void SetSource(int fileno);
     int  Read(DataType * chunk, int len);
     bool BeginRead();
-    
+    void EndRead();    
 private:
     int checkUnreadData();
     void readingThread(const void * endFlag, int endFlagSize);

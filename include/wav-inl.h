@@ -64,11 +64,11 @@ void WavReader<DataType>::readingThread(const void * endFlag, int endFlagSize)
     
     int len, type_size = sizeof(DataType);
     DataType buff[WAV_BYTE_BUFFER_SIZE / type_size];
-    while (true) {
+    while (_isReading) {
         len = read(_fileno, buff, sizeof(buff));
         if (len == -1) {
 #ifdef DEBUG
-    cout << "    DEBUG: In BeginRead readingThread, read error occured." << endl;
+            cout << "    DEBUG: In BeginRead readingThread, read error occured." << endl;
 #endif
             _isReading = false;
             return;
@@ -82,10 +82,16 @@ void WavReader<DataType>::readingThread(const void * endFlag, int endFlagSize)
         
         // if DataType not char or Byte, could be buggy.
         _pWavStream->Write(buff, len / type_size);
-            
-        if (!_isReading)
-            break;
     }
+#ifdef DEBUG
+    cout << "    DEBUG: WavReader stop reading from source." << endl;
+#endif
+}
+
+template <class DataType>
+void WavReader<DataType>::EndRead()
+{
+    _isReading = false;
 }
 
 template <class DataType>
