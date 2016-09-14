@@ -5,9 +5,7 @@
 #include "msp_cmn.h"
 #include "msp_errors.h"
 #include "types.h"
-#include <string>
-#include <unistd.h>
-#include <iostream>
+#include "common.h"
 
 using namespace std;
 

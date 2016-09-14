@@ -1,28 +1,33 @@
 #include "server.h"
-#include <fstream>
 
-Server::Server(int listen_port) 
-{  
-    if(( _socket_fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0 )
-    {  
-        throw string("socket failed");  
-    }  
+Server::Server(int listen_port, string wavDir)
+{
+    signal(SIGCHLD, SIG_IGN);
+    fstream fs(wavDir, ios::in);
+    if (!fs)
+        throw string(wavDir + "is not exist.");
+        
+    if (wavDir.rfind('/') + 1 != wavDir.size())
+        wavDir += '/';
+    _wavDir = wavDir;
+    
+    if(( _socket_fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0 ) 
+        throw string("socket failed");    
   
     memset(&_server_addr, 0, sizeof(_server_addr));//has sizeof,the head of myserver will be 0;
     _server_addr.sin_family = AF_INET;  
     _server_addr.sin_addr.s_addr = htonl(INADDR_ANY);  //IP地址设置成INADDR_ANY,让系统自动获取本机的IP地址。
     _server_addr.sin_port = htons(listen_port);  //设置的端口为listen_port
     
-    if( bind(_socket_fd, (sockaddr *)&_server_addr, sizeof(_server_addr)) < 0 ) 
-    {  
-        throw string("bind failed");
-    }  
+    if( bind(_socket_fd, (sockaddr *)&_server_addr, sizeof(_server_addr)) < 0 )  
+        throw string("bind failed"); 
     
-    if( listen(_socket_fd, 10) < 0 )
-    {  
+    int maxClientNum = 16;
+    if( listen(_socket_fd, maxClientNum) < 0 ) 
         throw string("listen failed");  
-    }  
-    cout << "Server started." << endl;
+    
+    cout << genTimeStamp() << " Server started, listen in [ " << listen_port << " ]" << endl;
+    cout << "    Accept [ " << maxClientNum << " ] actively client at the same time." << endl;
 }  
   
 int Server::Start() 
@@ -34,13 +39,18 @@ int Server::Start()
         {  
             throw string("Accept error!");  
             continue;  
-        }  
-        cout << "Received a connection from " << inet_ntoa(_remote_addr.sin_addr) << ":" \
-                                              << ntohs(_remote_addr.sin_port) << endl;
- 
+        }
+        string clientIP = inet_ntoa(_remote_addr.sin_addr);
+        int clientPort  = ntohs(_remote_addr.sin_port);
+        string timeStamp = genTimeStamp();
+        cout << timeStamp << " Comming request from [ " << clientIP << ":" \
+                                                                    << clientPort << " ]" << endl;
 	    int pid = fork();
         if( !pid ) 
         {
+            signal(SIGPIPE, SIG_IGN);
+            _summary << "    INFO: Connection start time: [ " << timeStamp << " ]\n";
+            _summary << "    INFO: Client socket: [ " << clientIP << ":" << clientPort << " ]\n";
             /*
              * Authentication data format: 
              *      username password docid depid port\n
@@ -48,7 +58,9 @@ int Server::Start()
              *      10000011 123456 10000011 CHK 5000\n
              */
             // 验证从客户端发来的身份数据
-            if (!authIdentity(5))
+            bool isIdentityValid = authIdentity(5);
+            _summary << "    INFO: Authentication data: [ " << _bIdentityData << " ]\n";
+            if (!isIdentityValid)
                 throw string("    ERROR: Authenticating identity failed.");
             
             SRManager srMgr;
@@ -84,42 +96,35 @@ int Server::Start()
             srMgr.WaitAllResults();
             srMgr.EndSession();
             srMgr.Logout();
-           
+            
             // 将最终识别结果发给客户端
             string sr_result = srMgr.GetResult();
-            if (send(_accept_fd, sr_result.c_str(), sr_result.length(), 0) == -1) {
+            _summary << "    INFO: Recognition result: [ " << sr_result << " ]\n";
+            if (send(_accept_fd, sr_result.c_str(), sr_result.length(), 0) == -1)
                 throw string("    ERROR: Connection reset by peer.");
-            }
-
-            // 音频数据写文件样例
-            ofstream fs("temp.wav", ios::out | ios::binary);
-            fs.write((const char *)wavStream.ReadAll(), wavStream.Size());
-            fs.close();
-            /* 剩下需要完成生成音频文件和保存识别结果的TXT文件
-            // TODO:: 需要先获取存放目录，可通过解析命令行参数或读取配置文件的方式获得。
-            string wavDir;
+            
             // 获取不带后缀的文件名(name, not full name)
-            string fileName = genFileName();
+            string fileName = genFileName(timeStamp);
             // 设置wav header信息，并将wav header与data写入wav文件生成音频
-            string wavFileName = wavDir + fileName + ".wav";
+            string wavFilePath = _wavDir + fileName + ".wav";
             WavWriter<Byte> wavWriter;
             wavWriter.SetFilePath(wavFilePath);
             wavWriter.SetStream(&wavStream);
             wavWriter.SetSampleFrequency(16000);
             wavWriter.SetChannelNum(1);
             wavWriter.SetSampleWidth(2);
-            wavWriter.Write();
+            wavWriter.WriteAll();
             wavWriter.Close();
-           
-             
+            
             // 将最终识别结果处理成可用于训练的结果，保存为txt文件
-            string txtFilePath = wavDir + fileName + ".txt";
+            string txtFilePath = _wavDir + fileName + ".txt";
             ofstream txtFile(txtFilePath, ios::out);
-            txtFile << fileName << "\t" << genTrainingText(sr_result) << endl;
+            txtFile << fileName << "\t" << genTrainingText(sr_result);
             txtFile.close();
-            */
+
+            _summary << "    DONE!\n\n";
+            LogTo(cout);
             close(_accept_fd);
-            cout << "    DONE!" << endl;
             exit(0);
          }
          close(_accept_fd);
@@ -136,9 +141,7 @@ bool Server::authIdentity(int nNeedParamCnt)
     
     buff[len - 1] = '\0';   // replace '\n' to '\0'
     _bIdentityData = (char *)buff;
-#ifdef DEBUG
-    cout << "    DEBUG: Authentication data: " << _bIdentityData << endl;
-#endif
+        
     int nRecvParamCnt = 1;
     for (int i = 0; i < len; i++) {
         if (_bIdentityData[i] == ' ')
@@ -150,12 +153,26 @@ bool Server::authIdentity(int nNeedParamCnt)
     return true;
 }
 
-string Server::genFileName()
+string Server::genFileName(string timeStamp)
 {
-	istringstream stringStream(_bIdentityData);
+	stringstream stringStream(_bIdentityData);
 	string token[5];
 	stringStream >> token[0] >> token[1] >> token[2] >> token[3] >> token[4];
-    string timeStamp = GenTimeStamp("%Y-%m-%d-%H-%M-%S");
     string filename = token[2] + "_" + token[3] + "_" + token[4] + "_" + timeStamp;
     return filename;
+}
+
+string Server::genTrainingText(string result)
+{
+    return result;
+}
+
+string Server::genTimeStamp()
+{
+    return GenTimeStamp("%Y-%m-%d %H:%M:%S");
+}
+
+void Server::LogTo(ostream & out)
+{
+    out << _summary;
 }

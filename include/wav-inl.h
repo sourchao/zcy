@@ -13,7 +13,7 @@ int WavStream<DataType>::Write(DataType * chunk, int len)
 }
 
 template <class DataType>
-int WavStream<DataType>::Read(DataType * chunk, int index, int len)
+int WavStream<DataType>::Read(DataType * chunk, unsigned int index, int len)
 {
     if (_wavData.size() <= index || chunk == NULL || len < 0)
         return 0;
@@ -112,7 +112,7 @@ int  WavReader<DataType>::Read(DataType * chunk, int chunk_size)
     if (!_isReading && checkUnreadData() == 0)
         return 0;
         
-    int read_size = 0;
+    unsigned int read_size = 0;
     int unread_data_size = 0;
     while (true) {
         unread_data_size = checkUnreadData();
@@ -139,3 +139,75 @@ int  WavReader<DataType>::checkUnreadData()
 }
 
 /* WavWriter Implement */
+
+template <class DataType>
+WavWriter<DataType>::WavWriter()
+{
+    _pWavStream = NULL;
+}
+
+template <class DataType>
+void WavWriter<DataType>::SetStream(WavStream<DataType> *wavStream)
+{
+    _pWavStream = wavStream;
+}
+
+template <class DataType>
+bool WavWriter<DataType>::SetFilePath(string wavFilePath)
+{
+    if (_wavFile)
+        _wavFile.close();
+        
+    _wavFile.open(wavFilePath, ios::out);
+    if (!_wavFile)
+        return false;
+    return true;
+}
+
+template <class DataType>
+void WavWriter<DataType>::Close()
+{
+    if (_wavFile)
+        _wavFile.close();
+        
+    _pWavStream = NULL;
+}
+
+template <class DataType>
+void WavWriter<DataType>::WriteHeader()
+{
+    _wavHeader.SetDataLength(_pWavStream->Size());
+    _wavHeader.Update();
+    _wavFile.write((const char *)_wavHeader.Data(), _wavHeader.Size());
+}
+
+template <class DataType>
+void WavWriter<DataType>::Write()
+{
+    _wavFile.write((const char *)_pWavStream->ReadAll(), _pWavStream->Size());
+}
+
+template <class DataType>
+void WavWriter<DataType>::WriteAll()
+{
+    WriteHeader();
+    Write();
+}
+
+template <class DataType>
+void WavWriter<DataType>::SetSampleFrequency(int sampleFrequency)
+{
+    _wavHeader.SetSampleFrequency(sampleFrequency);
+}
+
+template <class DataType>
+void WavWriter<DataType>::SetChannelNum(int channelNum)
+{
+    _wavHeader.SetChannelNum(channelNum);
+}
+
+template <class DataType>
+void WavWriter<DataType>::SetSampleWidth(int sampleWidth)
+{
+    _wavHeader.SetSampleWidth(sampleWidth);
+}

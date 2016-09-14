@@ -119,7 +119,7 @@ string SRManager::WaitAllResults()
 		usleep(100 * 1000);
     }
 #ifdef DEBUG
-    cout << "    DEBUG: All SR result has been received." << endl;
+    cout << "    DEBUG: All SR results has been received." << endl;
 #endif
     _sr_result += cur_result;
     return cur_result;
