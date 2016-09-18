@@ -13,6 +13,8 @@ Server::Server(int listen_port, string wavDir)
     
     if(( _socket_fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0 ) 
         throw string("socket failed");    
+    int reuseaddr = 1;
+    setsockopt(_socket_fd, SOL_SOCKET, SO_REUSEADDR, &reuseaddr, sizeof(reuseaddr));
   
     memset(&_server_addr, 0, sizeof(_server_addr));//has sizeof,the head of myserver will be 0;
     _server_addr.sin_family = AF_INET;  
@@ -26,7 +28,7 @@ Server::Server(int listen_port, string wavDir)
     if( listen(_socket_fd, maxClientNum) < 0 ) 
         throw string("listen failed");  
     
-    cout << genTimeStamp() << " Server started, listen in [ " << listen_port << " ]" << endl;
+    cout << genServerTimeStamp() << " Server started, listen in [ " << listen_port << " ]" << endl;
     cout << "    Accept [ " << maxClientNum << " ] actively client at the same time." << endl;
 }  
   
@@ -42,14 +44,15 @@ int Server::Start()
         }
         string clientIP = inet_ntoa(_remote_addr.sin_addr);
         int clientPort  = ntohs(_remote_addr.sin_port);
-        string timeStamp = genTimeStamp();
-        cout << timeStamp << " Comming request from [ " << clientIP << ":" \
+        string serverTimeStamp = genServerTimeStamp();
+        string fileTimeStamp = genFileTimeStamp();
+        cout << serverTimeStamp << " Comming request from [ " << clientIP << ":" \
                                                                     << clientPort << " ]" << endl;
 	    int pid = fork();
         if( !pid ) 
         {
             signal(SIGPIPE, SIG_IGN);
-            _summary << "    INFO: Connection start time: [ " << timeStamp << " ]\n";
+            _summary << "    INFO: Connection start time: [ " << serverTimeStamp << " ]\n";
             _summary << "    INFO: Client socket: [ " << clientIP << ":" << clientPort << " ]\n";
             /*
              * Authentication data format: 
@@ -104,7 +107,7 @@ int Server::Start()
                 throw string("    ERROR: Connection reset by peer.");
             
             // 获取不带后缀的文件名(name, not full name)
-            string fileName = genFileName(timeStamp);
+            string fileName = genFileName(fileTimeStamp);
             // 设置wav header信息，并将wav header与data写入wav文件生成音频
             string wavFilePath = _wavDir + fileName + ".wav";
             WavWriter<Byte> wavWriter;
@@ -167,9 +170,14 @@ string Server::genTrainingText(string result)
     return result;
 }
 
-string Server::genTimeStamp()
+string Server::genServerTimeStamp()
 {
     return GenTimeStamp("%Y-%m-%d %H:%M:%S");
+}
+
+string Server::genFileTimeStamp()
+{
+    return GenTimeStamp("%Y-%m-%d-%H-%M-%S");
 }
 
 void Server::LogTo(ostream & out)

@@ -66,14 +66,17 @@ void WavReader<DataType>::readingThread(const void * endFlag, int endFlagSize)
     DataType buff[WAV_BYTE_BUFFER_SIZE / type_size];
     while (_isReading) {
         len = read(_fileno, buff, sizeof(buff));
-        if (len == -1) {
+        if (len == -1 || len == 0) {
 #ifdef DEBUG
             cout << "    DEBUG: In BeginRead readingThread, read error occured." << endl;
 #endif
             _isReading = false;
             return;
         }
-            
+#ifdef DEBUG
+        cout << "    DEBUG: Data length [ " <<  len << " ]" << endl;
+        usleep(50 * 1000);
+#endif            
         int index = len - endFlagSize;
         if (memcmp(endFlag, (Byte *)buff + index, endFlagSize) == 0) {
             len -= endFlagSize;

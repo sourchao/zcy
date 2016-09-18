@@ -2,6 +2,7 @@
 #define _SERVER_H_
    
 #include <sys/socket.h>  
+#include <sys/types.h>
 #include <arpa/inet.h>  
 #include <netinet/in.h>
 #include <iomanip>
@@ -24,7 +25,8 @@ private:
     bool authIdentity(int nNeedParamCnt);
     string genFileName(string timeStamp);
     string genTrainingText(string result);
-    string genTimeStamp();
+    string genServerTimeStamp();
+    string genFileTimeStamp();
 
     int _socket_fd, _accept_fd;  
     sockaddr_in _server_addr;  
