@@ -74,7 +74,7 @@ void WavReader<DataType>::readingThread(const void * endFlag, int endFlagSize)
             return;
         }
 #ifdef DEBUG
-        cout << "    DEBUG: Data length [ " <<  len << " ]" << endl;
+        cout << "    DEBUG: Data piece length [ " <<  len << " ]" << endl;
         usleep(50 * 1000);
 #endif            
         int index = len - endFlagSize;
@@ -139,6 +139,12 @@ template <class DataType>
 int  WavReader<DataType>::checkUnreadData()
 {
     return (_pWavStream->Size() - _cur_pos);
+}
+
+template <class DataType>
+int  WavReader<DataType>::GetWavDataLength()
+{
+    return _pWavStream->Size();
 }
 
 /* WavWriter Implement */

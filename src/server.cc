@@ -5,14 +5,14 @@ Server::Server(int listen_port, string wavDir)
     signal(SIGCHLD, SIG_IGN);
     fstream fs(wavDir, ios::in);
     if (!fs)
-        throw string(wavDir + "is not exist.");
+        throw string("ERROR [ Parameter ]: " + wavDir + " is not exist");
         
     if (wavDir.rfind('/') + 1 != wavDir.size())
         wavDir += '/';
     _wavDir = wavDir;
     
     if(( _socket_fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0 ) 
-        throw string("socket failed");    
+        throw string("ERROR [ Socket ]: Socket failure");    
     int reuseaddr = 1;
     setsockopt(_socket_fd, SOL_SOCKET, SO_REUSEADDR, &reuseaddr, sizeof(reuseaddr));
   
@@ -22,14 +22,14 @@ Server::Server(int listen_port, string wavDir)
     _server_addr.sin_port = htons(listen_port);  //设置的端口为listen_port
     
     if( bind(_socket_fd, (sockaddr *)&_server_addr, sizeof(_server_addr)) < 0 )  
-        throw string("bind failed"); 
+        throw string("ERROR [ Socket ]: Bind failure"); 
     
     int maxClientNum = 16;
     if( listen(_socket_fd, maxClientNum) < 0 ) 
-        throw string("listen failed");  
+        throw string("ERROR [ Socket ]: Listen failure");  
     
     cout << genServerTimeStamp() << " Server started, listen in [ " << listen_port << " ]" << endl;
-    cout << "    Accept [ " << maxClientNum << " ] actively client at the same time." << endl;
+    cout << "    Accept [ " << maxClientNum << " ] active clients at the same time" << endl;
 }  
   
 int Server::Start() 
@@ -39,21 +39,21 @@ int Server::Start()
         socklen_t sin_size = sizeof(struct sockaddr_in);  
         if(( _accept_fd = accept(_socket_fd, (struct sockaddr *)&_remote_addr, &sin_size)) == -1 )  
         {  
-            throw string("Accept error!");  
+            throw string("ERROR [ Socket ]: Accept failure, NO more clients can be connect");  
             continue;  
         }
         string clientIP = inet_ntoa(_remote_addr.sin_addr);
         int clientPort  = ntohs(_remote_addr.sin_port);
         string serverTimeStamp = genServerTimeStamp();
         string fileTimeStamp = genFileTimeStamp();
-        cout << serverTimeStamp << " Comming request from [ " << clientIP << ":" \
+        cout << serverTimeStamp << "Incomming request from [ " << clientIP << ":" \
                                                                     << clientPort << " ]" << endl;
 	    int pid = fork();
         if( !pid ) 
         {
             signal(SIGPIPE, SIG_IGN);
-            _summary << "    INFO: Connection start time: [ " << serverTimeStamp << " ]\n";
-            _summary << "    INFO: Client socket: [ " << clientIP << ":" << clientPort << " ]\n";
+            _summary << "    INFO: Connection start time = [ " << serverTimeStamp << " ]\n";
+            _summary << "    INFO: Client socket = [ " << clientIP << ":" << clientPort << " ]\n";
             /*
              * Authentication data format: 
              *      username password docid depid port\n
@@ -62,9 +62,9 @@ int Server::Start()
              */
             // 验证从客户端发来的身份数据
             bool isIdentityValid = authIdentity(5);
-            _summary << "    INFO: Authentication data: [ " << _bIdentityData << " ]\n";
+            _summary << "    INFO: Authentication data = [ " << _bIdentityData << " ]\n";
             if (!isIdentityValid)
-                throw string("    ERROR: Authenticating identity failed.");
+                throw string("    ERROR: Authenticating identity failed");
             
             SRManager srMgr;
             if (!srMgr.Login(NULL, NULL))
@@ -94,6 +94,13 @@ int Server::Start()
                 srMgr.AskResult();
             }
             wavReader.EndRead();
+            
+            // 输出音频长度
+            double wavLength = wavReader.GetWavDataLength() * 1.0 / 32000;
+            char szWavLength[10];
+            sprintf(szWavLength, "%.2lf", wavLength);
+            _summary << "    INFO: Wav length = [ " << szWavLength << " sec ]\n";
+
             srMgr.SendFinish();
             // 阻塞等待科大讯飞API发回完整的识别结果
             srMgr.WaitAllResults();
@@ -102,7 +109,7 @@ int Server::Start()
             
             // 将最终识别结果发给客户端
             string sr_result = srMgr.GetResult();
-            _summary << "    INFO: Recognition result: [ " << sr_result << " ]\n";
+            _summary << "    INFO: Recognition result = [ " << sr_result << " ]\n";
             if (send(_accept_fd, sr_result.c_str(), sr_result.length(), 0) == -1)
                 throw string("    ERROR: Connection reset by peer.");
             
@@ -118,12 +125,14 @@ int Server::Start()
             wavWriter.SetSampleWidth(2);
             wavWriter.WriteAll();
             wavWriter.Close();
+            _summary << "    INFO: Wav file save as [ " << wavFilePath << " ]\n";
             
             // 将最终识别结果处理成可用于训练的结果，保存为txt文件
             string txtFilePath = _wavDir + fileName + ".txt";
             ofstream txtFile(txtFilePath, ios::out);
             txtFile << fileName << "\t" << genTrainingText(sr_result);
             txtFile.close();
+            _summary << "    INFO: Text file save as [ " << txtFilePath << " ]\n";
 
             _summary << "    DONE!\n\n";
             LogTo(cout);
