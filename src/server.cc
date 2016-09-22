@@ -46,7 +46,7 @@ int Server::Start()
         int clientPort  = ntohs(_remote_addr.sin_port);
         string serverTimeStamp = genServerTimeStamp();
         string fileTimeStamp = genFileTimeStamp();
-        cout << serverTimeStamp << "Incomming request from [ " << clientIP << ":" \
+        cout << serverTimeStamp << " Incomming request from [ " << clientIP << ":" \
                                                                     << clientPort << " ]" << endl;
 	    int pid = fork();
         if( !pid ) 
@@ -99,7 +99,7 @@ int Server::Start()
             double wavLength = wavReader.GetWavDataLength() * 1.0 / 32000;
             char szWavLength[10];
             sprintf(szWavLength, "%.2lf", wavLength);
-            _summary << "    INFO: Wav length = [ " << szWavLength << " sec ]\n";
+            _summary << "    INFO: Wav length = [ " << szWavLength << " ] secs\n";
 
             srMgr.SendFinish();
             // 阻塞等待科大讯飞API发回完整的识别结果
